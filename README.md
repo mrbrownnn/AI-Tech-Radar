@@ -9,6 +9,7 @@ Detailed project docs live in [docs](docs/):
 - [Database Design](docs/database-design.md)
 - [API Contract](docs/api-contract.md)
 - [Workflow Specification](docs/workflows.md)
+- [Render Deployment](docs/render-deployment.md)
 
 ## Prerequisites
 
@@ -97,6 +98,35 @@ Expected response:
 ```json
 {"status":"ok"}
 ```
+
+## Deploy On Render
+
+This repo includes a Render Blueprint at [render.yaml](render.yaml).
+
+Deployment steps:
+
+1. Push this repository to GitHub.
+2. Open Render Dashboard.
+3. Go to **New +** -> **Blueprint**.
+4. Select this repository.
+5. Render will detect `render.yaml`.
+6. Fill the prompted secret values:
+
+```env
+GITHUB_TOKEN=
+HUGGINGFACE_TOKEN=
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+7. Apply the Blueprint.
+
+The Blueprint creates:
+
+- `ai-tech-radar`: Docker web service
+- `ai-tech-radar-db`: Render Postgres database
+
+The web service runs the app scheduler, realtime refresh loop, digest generation, Telegram commands, and notification delivery. The Blueprint uses `starter` for the web service because free instances can sleep, which would stop realtime refresh and Telegram long polling.
 
 ## Manual Test
 
@@ -199,4 +229,3 @@ If Telegram messages are not sent, verify:
 - You have sent at least one message to the bot.
 - `TELEGRAM_CHAT_ID` matches the chat ID from `getUpdates`.
 - The app logs do not show Telegram API errors.
-

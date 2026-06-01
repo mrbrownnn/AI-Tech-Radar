@@ -2,7 +2,7 @@ services:
   - type: web
     name: ai-tech-radar
     runtime: docker
-    repo: https://github.com/mrbrownnn/AI_daily_news
+    repo: https://github.com/mrbrownnn/AI-Tech-Radar
     branch: main
     plan: starter
     region: singapore
@@ -55,4 +55,3 @@ databases:
     user: ai_tech_radar
     plan: basic-256mb
     region: singapore
-

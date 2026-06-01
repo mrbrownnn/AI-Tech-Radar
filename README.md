@@ -24,8 +24,8 @@ Detailed project docs live in [docs](docs/):
 Clone the repository:
 
 ```bash
-git clone https://github.com/mrbrownnn/daily_new.git
-cd daily_new
+git clone https://github.com/mrbrownnn/AI-Tech-Radar.git
+cd AI-Tech-Radar
 ```
 
 Create your local environment file:

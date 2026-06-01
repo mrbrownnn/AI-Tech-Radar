@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from urllib.parse import urlparse
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -19,8 +20,33 @@ def _sqlalchemy_database_url(database_url: str) -> str:
     return database_url
 
 
+def _database_host(database_url: str) -> str | None:
+    parsed = urlparse(database_url)
+    return parsed.hostname
+
+
+def _validate_database_url(database_url: str) -> None:
+    host = _database_host(database_url)
+    if host == "postgres":
+        raise RuntimeError(
+            "DATABASE_URL points to host 'postgres', which only works inside Docker Compose. "
+            "On Render, set DATABASE_URL from the Render Postgres internal connection string "
+            "or deploy via the Blueprint so fromDatabase injects it."
+        )
+
+
+def _log_database_target(database_url: str) -> None:
+    parsed = urlparse(database_url)
+    safe_target = f"{parsed.scheme}://{parsed.hostname or 'unknown'}"
+    if parsed.port:
+        safe_target = f"{safe_target}:{parsed.port}"
+    print(f"Using database target: {safe_target}", flush=True)
+
+
 settings = get_settings()
 database_url = _sqlalchemy_database_url(settings.database_url)
+_validate_database_url(database_url)
+_log_database_target(database_url)
 engine = create_engine(
     database_url,
     connect_args=_connect_args(database_url),

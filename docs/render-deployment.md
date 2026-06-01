@@ -37,6 +37,27 @@ Enabled jobs:
 
 Render Postgres provides `DATABASE_URL` as a `postgresql://...` connection string. The application normalizes this to `postgresql+psycopg://...` for SQLAlchemy.
 
+If the app fails with:
+
+```text
+psycopg.OperationalError: [Errno -2] Name or service not known
+```
+
+check the Render service environment variables. `DATABASE_URL` must not point to Docker Compose host `postgres`.
+
+Correct Render options:
+
+- Deploy with the Blueprint so `DATABASE_URL` is injected from `ai-tech-radar-db`.
+- Or manually set `DATABASE_URL` to the Render Postgres **Internal Database URL**.
+
+Incorrect on Render:
+
+```env
+DATABASE_URL=postgresql+psycopg://ai_tech_radar:ai_tech_radar@postgres:5432/ai_tech_radar
+```
+
+That URL only works inside local Docker Compose.
+
 ## Deploy Steps
 
 1. Open Render Dashboard.
@@ -46,6 +67,8 @@ Render Postgres provides `DATABASE_URL` as a `postgresql://...` connection strin
 5. Confirm the detected `render.yaml`.
 6. Enter the required secret values.
 7. Apply the Blueprint.
+
+If you created the web service manually instead of using the Blueprint, also create a Render Postgres database and set the web service `DATABASE_URL` to that database's internal connection string.
 
 ## Smoke Test
 
@@ -68,4 +91,3 @@ Then test Telegram:
 /items
 /run
 ```
-

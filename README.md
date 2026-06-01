@@ -128,6 +128,8 @@ The Blueprint creates:
 
 The web service runs the app scheduler, realtime refresh loop, digest generation, Telegram commands, and notification delivery. The Blueprint uses `starter` for the web service because free instances can sleep, which would stop realtime refresh and Telegram long polling.
 
+If Render logs show `Name or service not known` while connecting to PostgreSQL, check `DATABASE_URL` in the Render service. It must come from Render Postgres, not the local Docker Compose host `postgres`.
+
 ## Manual Test
 
 Refresh data:

@@ -1,0 +1,24 @@
+github:
+  enabled: true
+  trending_enabled: true
+  api_enabled: true
+  trending_since: daily
+
+huggingface:
+  enabled: true
+  models_enabled: true
+  datasets_enabled: true
+  spaces_enabled: true
+
+arxiv:
+  enabled: false
+  categories:
+    - cs.AI
+    - cs.LG
+    - cs.CL
+    - cs.CV
+
+rss:
+  enabled: false
+  feeds: []
+

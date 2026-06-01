@@ -1,0 +1,52 @@
+services:
+  app:
+    build: .
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://ai_tech_radar:ai_tech_radar@postgres:5432/ai_tech_radar}
+      TOP_N_ITEMS: ${TOP_N_ITEMS:-5}
+      DIGEST_LANGUAGE: ${DIGEST_LANGUAGE:-en}
+      ENABLE_REALTIME_UPDATES: ${ENABLE_REALTIME_UPDATES:-true}
+      REALTIME_REFRESH_INTERVAL_MINUTES: ${REALTIME_REFRESH_INTERVAL_MINUTES:-15}
+      DIGEST_TIME_LOCAL: ${DIGEST_TIME_LOCAL:-08:05}
+      DELIVERY_TIME_LOCAL: ${DELIVERY_TIME_LOCAL:-08:06}
+      EXPORT_MARKDOWN_REPORTS: ${EXPORT_MARKDOWN_REPORTS:-true}
+      MARKDOWN_REPORTS_DIR: ${MARKDOWN_REPORTS_DIR:-reports}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Bangkok}
+      ENABLE_SCHEDULER: ${ENABLE_SCHEDULER:-true}
+      ENABLE_TELEGRAM_COMMANDS: ${ENABLE_TELEGRAM_COMMANDS:-true}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./reports:/app/reports
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ai_tech_radar
+      POSTGRES_USER: ai_tech_radar
+      POSTGRES_PASSWORD: ai_tech_radar
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_tech_radar -d ai_tech_radar"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+
+networks:
+  internal:
+    driver: bridge

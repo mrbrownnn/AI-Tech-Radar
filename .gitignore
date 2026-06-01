@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 .venv/
 __pycache__/
 *.py[cod]
@@ -8,6 +10,15 @@ __pycache__/
 .coverage
 htmlcov/
 ai_tech_radar.db
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
 reports/
 postgres_data/
+logs/
+*.log
+docker-compose.override.yml
+.vscode/
+.idea/
 

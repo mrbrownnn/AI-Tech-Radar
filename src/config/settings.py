@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +27,18 @@ class Settings(BaseSettings):
     enable_scheduler: bool = True
     enable_telegram_commands: bool = True
     http_timeout_seconds: float = 20.0
+
+    @field_validator("github_token", "huggingface_token", mode="before")
+    @classmethod
+    def clean_bearer_token(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        token = str(value).strip()
+        if "=" in token:
+            token = token.split("=", 1)[1].strip()
+
+        return token or None
 
     model_config = SettingsConfigDict(
         env_file=".env",

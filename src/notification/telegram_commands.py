@@ -22,6 +22,7 @@ COMMANDS = [
     {"command": "help", "description": "Show available commands"},
     {"command": "status", "description": "Show service status"},
     {"command": "items", "description": "Show top ranked items"},
+    {"command": "news", "description": "Refresh and send latest AI news"},
     {"command": "latest", "description": "Send latest digest"},
     {"command": "refresh", "description": "Refresh data now"},
     {"command": "crawl", "description": "Refresh data now"},
@@ -123,6 +124,8 @@ class TelegramCommandBot:
             await self._send_text(message.chat_id, await asyncio.to_thread(self._status_text))
         elif command == "/items":
             await self._send_text(message.chat_id, await asyncio.to_thread(self._top_items_text))
+        elif command == "/news":
+            await self._send_news(message.chat_id)
         elif command == "/latest":
             await self._send_latest_digest(message.chat_id)
         elif command in {"/refresh", "/crawl"}:
@@ -158,6 +161,25 @@ class TelegramCommandBot:
                 await self._send_text(chat_id, f"{name} failed: {exc}")
                 return
             await self._send_text(chat_id, f"{name} completed: {result}")
+
+    async def _send_news(self, chat_id: str) -> None:
+        await self._send_text(chat_id, "Updating AI tech news...")
+        try:
+            crawl_result = await asyncio.to_thread(run_crawl_job, self.settings)
+            await asyncio.to_thread(run_digest_job, self.settings)
+        except Exception as exc:  # noqa: BLE001
+            await self._send_text(chat_id, f"news failed: {exc}")
+            return
+
+        digest = await asyncio.to_thread(self._latest_digest)
+        if digest is None:
+            await self._send_text(chat_id, "No digest was generated.")
+            return
+
+        upserted_items = crawl_result.get("upserted_items", 0)
+        await self._send_text(chat_id, f"News updated: {upserted_items} items indexed.")
+        for message in split_markdown_sections(digest.content):
+            await self._send_text(chat_id, message)
 
     async def _send_latest_digest(self, chat_id: str) -> None:
         digest = await asyncio.to_thread(self._latest_digest)
@@ -258,6 +280,7 @@ class TelegramCommandBot:
             "AI Tech Radar Commands\n\n"
             "/status - show service status\n"
             "/items - show top ranked items\n"
+            "/news - refresh and send latest AI news\n"
             "/latest - send latest digest\n"
             "/refresh - refresh data now\n"
             "/crawl - refresh data now\n"

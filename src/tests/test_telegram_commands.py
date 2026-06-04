@@ -31,7 +31,7 @@ def test_send_news_runs_crawl_digest_and_sends_latest_digest(monkeypatch):
 
     def fake_crawl_job(settings):
         calls.append("crawl")
-        return {"upserted_items": 3}
+        return {"report_date": "2026-06-03", "upserted_items": 3}
 
     def fake_digest_job(settings):
         calls.append("digest")
@@ -49,7 +49,7 @@ def test_send_news_runs_crawl_digest_and_sends_latest_digest(monkeypatch):
     assert calls == ["crawl", "digest"]
     assert bot.sent_messages == [
         "Updating AI tech news...",
-        "News updated: 3 items indexed.",
+        "News updated for 2026-06-03: 3 items indexed.",
         "Overview",
         "Top AI Models",
     ]

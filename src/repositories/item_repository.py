@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import desc, select
@@ -54,6 +55,8 @@ class ItemRepository:
         *,
         source: str | None = None,
         item_type: str | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
         limit: int = 100,
     ) -> list[tuple[Item, Score | None]]:
         query = select(Item, Score).outerjoin(Score, Score.item_id == Item.id)
@@ -61,16 +64,26 @@ class ItemRepository:
             query = query.where(Item.source == source)
         if item_type:
             query = query.where(Item.type == item_type)
+        if published_from:
+            query = query.where(Item.published_at >= published_from)
+        if published_to:
+            query = query.where(Item.published_at < published_to)
         query = query.order_by(desc(Score.final_score), desc(Item.published_at)).limit(limit)
         return list(self.db.execute(query).all())
 
-    def list_items_for_digest(self, *, limit: int = 500) -> list[tuple[Item, Score | None]]:
-        query = (
-            select(Item, Score)
-            .outerjoin(Score, Score.item_id == Item.id)
-            .order_by(desc(Score.final_score), desc(Item.published_at))
-            .limit(limit)
-        )
+    def list_items_for_digest(
+        self,
+        *,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        limit: int = 500,
+    ) -> list[tuple[Item, Score | None]]:
+        query = select(Item, Score).outerjoin(Score, Score.item_id == Item.id)
+        if published_from:
+            query = query.where(Item.published_at >= published_from)
+        if published_to:
+            query = query.where(Item.published_at < published_to)
+        query = query.order_by(desc(Score.final_score), desc(Item.published_at)).limit(limit)
         return list(self.db.execute(query).all())
 
     def _find_existing_item(self, data: dict[str, Any]) -> Item | None:

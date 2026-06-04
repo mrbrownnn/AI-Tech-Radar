@@ -42,7 +42,7 @@ class HuggingFaceCollector:
     ) -> list[CollectedItem]:
         response = await client.get(
             f"https://huggingface.co/api/{endpoint}",
-            params={"sort": "downloads", "direction": "-1", "limit": 50},
+            params={"sort": "lastModified", "direction": "-1", "limit": 100},
         )
         response.raise_for_status()
         payloads = response.json()
@@ -57,4 +57,3 @@ class HuggingFaceCollector:
                 )
             )
         return collected
-

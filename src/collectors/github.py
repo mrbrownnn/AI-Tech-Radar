@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
 
 from src.collectors.base import CollectedItem
 from src.config import Settings
+from src.pipeline.daily_window import report_date_for_timezone
 
 
 class GitHubCollector:
@@ -35,10 +35,10 @@ class GitHubCollector:
         return items
 
     async def _collect_from_api(self, client: httpx.AsyncClient) -> list[CollectedItem]:
-        pushed_after = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
+        report_date = report_date_for_timezone(self.settings.app_timezone)
         params = {
-            "q": f"stars:>100 pushed:>={pushed_after} ai OR llm",
-            "sort": "stars",
+            "q": f"stars:>100 pushed:{report_date.isoformat()} ai OR llm",
+            "sort": "updated",
             "order": "desc",
             "per_page": 50,
         }
@@ -58,6 +58,7 @@ class GitHubCollector:
         from bs4 import BeautifulSoup
 
         since = self.source_config.get("trending_since", "daily")
+        report_date = report_date_for_timezone(self.settings.app_timezone)
         response = await client.get("https://github.com/trending", params={"since": since})
         response.raise_for_status()
 
@@ -79,6 +80,7 @@ class GitHubCollector:
                 "_collector": "github_trending",
                 "full_name": repo_path,
                 "html_url": url,
+                "pushed_at": f"{report_date.isoformat()}T12:00:00Z",
                 "description": description_node.get_text(" ", strip=True)
                 if description_node
                 else None,
@@ -90,6 +92,7 @@ class GitHubCollector:
                 else 0,
                 "language": language_node.get_text(strip=True) if language_node else None,
                 "topics": [],
+                "daily_report_date": report_date.isoformat(),
             }
             collected.append(
                 CollectedItem(source=self.source, source_id=repo_path, payload=payload)

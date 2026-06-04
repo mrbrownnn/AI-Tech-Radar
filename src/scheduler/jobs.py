@@ -13,6 +13,11 @@ from src.collectors import ArxivCollector, GitHubCollector, HuggingFaceCollector
 from src.collectors.base import CollectedItem
 from src.config import Settings, get_settings
 from src.notification.telegram import TelegramNotifier
+from src.pipeline.daily_window import (
+    is_in_report_window,
+    report_date_for_timezone,
+    report_window_utc,
+)
 from src.pipeline.deduplicate import deduplicate_items
 from src.pipeline.digest import generate_digest, split_markdown_sections
 from src.pipeline.normalize import normalize_collected_item
@@ -24,12 +29,13 @@ from src.repositories.item_repository import ItemRepository
 
 def run_crawl_job(settings: Settings | None = None) -> dict[str, Any]:
     settings = settings or get_settings()
+    target_date = report_date_for_timezone(settings.app_timezone)
     source_config = load_source_config()
     collected = asyncio.run(_collect_enabled_sources(settings, source_config))
 
     db = SessionLocal()
     try:
-        stats = _persist_collected_items(db, collected)
+        stats = _persist_collected_items(db, collected, settings, target_date)
         db.commit()
         return stats
     except Exception:
@@ -41,22 +47,30 @@ def run_crawl_job(settings: Settings | None = None) -> dict[str, Any]:
 
 def run_digest_job(settings: Settings | None = None) -> dict[str, Any]:
     settings = settings or get_settings()
+    target_date = report_date_for_timezone(settings.app_timezone)
+    window_start, window_end = report_window_utc(target_date, settings.app_timezone)
     db = SessionLocal()
     try:
         item_repo = ItemRepository(db)
         digest_repo = DigestRepository(db)
-        ranked = [_item_to_digest_dict(item, score) for item, score in item_repo.list_items_for_digest()]
+        ranked = [
+            _item_to_digest_dict(item, score)
+            for item, score in item_repo.list_items_for_digest(
+                published_from=window_start,
+                published_to=window_end,
+            )
+        ]
         ranked = [item for item in ranked if item.get("final_score") is not None]
         ranked.sort(key=lambda item: item["final_score"], reverse=True)
 
         generated = generate_digest(
             ranked,
-            digest_date=date.today(),
+            digest_date=target_date,
             top_n=settings.top_n_items,
             language=settings.digest_language,
         )
         digest = digest_repo.create_digest(
-            digest_date=date.today(),
+            digest_date=target_date,
             content=generated.markdown,
             channel="telegram",
         )
@@ -187,25 +201,39 @@ async def _collect_with_retries(collector: Any) -> list[CollectedItem]:
     raise RuntimeError(f"{collector.__class__.__name__} failed: {last_error}") from last_error
 
 
-def _persist_collected_items(db: Session, collected: list[CollectedItem]) -> dict[str, Any]:
+def _persist_collected_items(
+    db: Session,
+    collected: list[CollectedItem],
+    settings: Settings,
+    target_date: date,
+) -> dict[str, Any]:
     item_repo = ItemRepository(db)
     normalized_items: list[dict[str, Any]] = []
+    window_start, window_end = report_window_utc(target_date, settings.app_timezone)
 
     for item in collected:
         normalized = normalize_collected_item(item.source, item.payload)
-        if normalized:
+        if normalized and is_in_report_window(
+            normalized.get("published_at"),
+            target_date=target_date,
+            app_timezone=settings.app_timezone,
+        ):
             normalized_items.append(normalized)
 
     deduped = deduplicate_items(normalized_items)
     for item_data in deduped:
         item = item_repo.upsert_item(item_data)
-        score_data = score_item(item_data)
+        score_data = score_item(item_data, now=window_end)
         item_repo.save_score(item.id, score_data)
 
     return {
         "status": "success",
+        "report_date": target_date.isoformat(),
+        "window_start_utc": window_start.isoformat(),
+        "window_end_utc": window_end.isoformat(),
         "collected_items": len(collected),
         "normalized_items": len(normalized_items),
+        "filtered_out_items": len(collected) - len(normalized_items),
         "upserted_items": len(deduped),
     }
 

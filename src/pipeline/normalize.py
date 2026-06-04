@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -32,7 +32,7 @@ def _normalize_github(payload: dict[str, Any]) -> dict[str, Any]:
         "description": payload.get("description"),
         "url": payload.get("html_url"),
         "tags": tags,
-        "published_at": _parse_datetime(payload.get("created_at") or payload.get("pushed_at")),
+        "published_at": _parse_datetime(payload.get("pushed_at") or payload.get("created_at")),
         "metadata": {
             "stars": payload.get("stargazers_count", 0),
             "forks": payload.get("forks_count", 0),
@@ -60,7 +60,7 @@ def _normalize_huggingface(payload: dict[str, Any]) -> dict[str, Any]:
         "description": payload.get("description") or payload.get("pipeline_tag"),
         "url": f"{url_prefix}/{item_id}",
         "tags": tags,
-        "published_at": _parse_datetime(payload.get("createdAt") or payload.get("lastModified")),
+        "published_at": _parse_datetime(payload.get("lastModified") or payload.get("createdAt")),
         "metadata": {
             "downloads": payload.get("downloads", 0),
             "likes": payload.get("likes", 0),
@@ -104,9 +104,15 @@ def _parse_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        return _to_utc_naive(datetime.fromisoformat(value.replace("Z", "+00:00")))
     except ValueError:
         try:
-            return parsedate_to_datetime(value).replace(tzinfo=None)
+            return _to_utc_naive(parsedate_to_datetime(value))
         except (TypeError, ValueError):
             return None
+
+
+def _to_utc_naive(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)

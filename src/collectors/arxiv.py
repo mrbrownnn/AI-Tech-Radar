@@ -7,6 +7,7 @@ import httpx
 
 from src.collectors.base import CollectedItem
 from src.config import Settings
+from src.pipeline.daily_window import report_date_for_timezone
 
 
 class ArxivCollector:
@@ -18,7 +19,10 @@ class ArxivCollector:
 
     async def collect(self) -> list[CollectedItem]:
         categories = self.source_config.get("categories", ["cs.AI", "cs.LG", "cs.CL", "cs.CV"])
-        query = " OR ".join(f"cat:{category}" for category in categories)
+        category_query = " OR ".join(f"cat:{category}" for category in categories)
+        report_date = report_date_for_timezone(self.settings.app_timezone)
+        submitted_day = report_date.strftime("%Y%m%d")
+        query = f"({category_query}) AND submittedDate:[{submitted_day}0000 TO {submitted_day}2359]"
         params = {
             "search_query": query,
             "sortBy": "submittedDate",
@@ -48,4 +52,3 @@ class ArxivCollector:
             }
             items.append(CollectedItem(source=self.source, source_id=arxiv_id, payload=payload))
         return items
-

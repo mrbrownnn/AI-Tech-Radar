@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from src.config import Settings
 from src.models.digest import Digest
 from src.models.item import Item
+from src.pipeline.daily_window import report_date_for_timezone, report_window_utc
 from src.pipeline.digest import split_markdown_sections
 from src.repositories.database import SessionLocal
 from src.repositories.digest_repository import DigestRepository
@@ -177,7 +178,9 @@ class TelegramCommandBot:
             return
 
         upserted_items = crawl_result.get("upserted_items", 0)
-        await self._send_text(chat_id, f"News updated: {upserted_items} items indexed.")
+        report_date = crawl_result.get("report_date")
+        suffix = f" for {report_date}" if report_date else ""
+        await self._send_text(chat_id, f"News updated{suffix}: {upserted_items} items indexed.")
         for message in split_markdown_sections(digest.content):
             await self._send_text(chat_id, message)
 
@@ -217,16 +220,22 @@ class TelegramCommandBot:
         )
 
     def _top_items_text(self) -> str:
+        target_date = report_date_for_timezone(self.settings.app_timezone)
+        window_start, window_end = report_window_utc(target_date, self.settings.app_timezone)
         db = SessionLocal()
         try:
-            rows = ItemRepository(db).list_ranked_items(limit=self.settings.top_n_items)
+            rows = ItemRepository(db).list_ranked_items(
+                published_from=window_start,
+                published_to=window_end,
+                limit=self.settings.top_n_items,
+            )
         finally:
             db.close()
 
         if not rows:
-            return "No ranked items found. Use /refresh first."
+            return f"No ranked items found for {target_date.isoformat()}. Use /news first."
 
-        lines = ["Top Ranked Items"]
+        lines = [f"Top Ranked Items for {target_date.isoformat()}"]
         for index, (item, score) in enumerate(rows, start=1):
             final_score = score.final_score if score else 0
             lines.extend(
